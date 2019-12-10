@@ -14,7 +14,10 @@ namespace Abioka.Function {
 
         [FunctionName ("PngWebHook")]
         public static async Task<IActionResult> Run (
-            [HttpTrigger (AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req,
+            [HttpTrigger (AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req, 
+            [CosmosDB (databaseName: "ToDoItems",
+                collectionName: "Items",
+                ConnectionStringSetting = "CosmosDBConnection")] IAsyncCollector<PngFile> pngFiles,
             ILogger log) {
             log.LogInformation ("C# HTTP trigger function processed a request.");
 
@@ -38,10 +41,17 @@ namespace Abioka.Function {
 
                     var fileUrl = $"{url}/{fileItem}";
                     log.LogInformation (fileUrl);
+                    await pngFiles.AddAsync (new PngFile { Id = Guid.NewGuid (), Url = fileUrl });
                 }
             }
 
             return new EmptyResult ();
         }
+    }
+
+    public class PngFile {
+        public Guid Id { get; set; }
+
+        public string Url { get; set; }
     }
 }
