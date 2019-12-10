@@ -23,17 +23,22 @@ namespace Abioka.Function {
             if (data == null)
                 return new BadRequestObjectResult ("body is empty");
 
-            if (data.commits?.added == null)
+            if (data.commits == null)
                 return new EmptyResult ();
 
             var url = $"{rawUrl}{data.repository?.full_name}/{data.repository?.master_branch}";
 
-            foreach (string fileItem in data.commits.added) {
-                if (Path.GetExtension (fileItem).ToLower () != ".png")
-                    continue;
+            foreach (var commitItem in data.commits) {
+                if (commitItem.added == null)
+                    return new EmptyResult ();
 
-                var fileUrl = $"{url}/{fileItem}";
-                log.LogInformation (fileUrl);
+                foreach (string fileItem in commitItem.added) {
+                    if (Path.GetExtension (fileItem).ToLower () != ".png")
+                        continue;
+
+                    var fileUrl = $"{url}/{fileItem}";
+                    log.LogInformation (fileUrl);
+                }
             }
 
             return new EmptyResult ();
