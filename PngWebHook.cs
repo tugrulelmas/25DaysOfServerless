@@ -15,7 +15,7 @@ namespace Abioka.Function {
         [FunctionName ("PngWebHook")]
         public static async Task<IActionResult> Run (
             [HttpTrigger (AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req, 
-            [CosmosDB (databaseName: "ToDoItems",
+            [CosmosDB (databaseName: "ToDoList",
                 collectionName: "Items",
                 ConnectionStringSetting = "CosmosDBConnection")] IAsyncCollector<PngFile> pngFiles,
             ILogger log) {
