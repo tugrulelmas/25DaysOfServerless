@@ -17,7 +17,8 @@ namespace Abioka.Function {
             [HttpTrigger (AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req, 
             [CosmosDB (databaseName: "ToDoList",
                 collectionName: "Items",
-                ConnectionStringSetting = "CosmosDBConnection")] IAsyncCollector<PngFile> pngFiles,
+                ConnectionStringSetting = "CosmosDBConnection",
+                CreateIfNotExists = true)] IAsyncCollector<PngFile> pngFiles,
             ILogger log) {
             log.LogInformation ("C# HTTP trigger function processed a request.");
 
@@ -50,6 +51,7 @@ namespace Abioka.Function {
     }
 
     public class PngFile {
+        [JsonProperty("id")]
         public Guid Id { get; set; }
 
         public string Url { get; set; }
