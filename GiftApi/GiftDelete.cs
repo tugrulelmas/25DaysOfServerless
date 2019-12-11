@@ -16,12 +16,13 @@ namespace Abioka.GiftApi {
         public static async Task<IActionResult> Run (
             [HttpTrigger (AuthorizationLevel.Anonymous, "delete", Route = "gifts/{id}")] HttpRequest req, [CosmosDB (databaseName: "ToDoList",
                 collectionName: "Gift",
-                ConnectionStringSetting = "CosmosDBConnection")] DocumentClient client,
+                ConnectionStringSetting = "CosmosDBConnection",
+                PartitionKey = "{id}")] DocumentClient client,
             ILogger log,
             Guid id) {
 
             Uri documentUri = UriFactory.CreateDocumentUri ("ToDoList", "Gift", id.ToString ());
-            await client.DeleteDocumentAsync (documentUri);
+            await client.DeleteDocumentAsync (documentUri, new RequestOptions { PartitionKey = new Microsoft.Azure.Documents.PartitionKey (id.ToString()) });
 
             return new OkResult ();
         }

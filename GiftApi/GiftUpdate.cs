@@ -17,7 +17,7 @@ namespace Abioka.GiftApi {
                 collectionName: "Gift",
                 ConnectionStringSetting = "CosmosDBConnection",
                 Id = "{id}",
-                PartitionKey= "name")] Gift gift,
+                PartitionKey= "{id}")] Gift gift,
             ILogger log) {
             
             if(gift == null)
