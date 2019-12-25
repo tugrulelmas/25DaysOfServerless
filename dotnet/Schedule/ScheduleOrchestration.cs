@@ -5,6 +5,8 @@ using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,21 +16,13 @@ namespace Abioka.Function
     public static class ScheduleOrchestration
     {
         [FunctionName("ScheduleOrchestration")]
-        public static async Task<IActionResult> RunOrchestrator([OrchestrationTrigger] IDurableOrchestrationContext context)
+        public static async Task<IActionResult> RunOrchestrator([OrchestrationTrigger] IDurableOrchestrationContext context, ILogger log)
         {
             var message = context.GetInput<string>();
-            var messageContent = message.Split(",", StringSplitOptions.RemoveEmptyEntries);
-            message = messageContent[0];
-
-            DateTime startAt = new DateTime();
-            if(messageContent.Length == 2){
-                int seconds;
-                if(Int32.TryParse(messageContent[1], out seconds)){
-                    startAt = DateTime.Now.AddSeconds(seconds);
-                }
-            }
+            var startAt = await context.CallActivityAsync<DateTime>("GetDateFromMessage", message);
+            log.LogInformation($"start date is: {startAt}");
             await context.CreateTimer(startAt, CancellationToken.None);
-            await context.CallActivityAsync<string>("SendSlackMessage", $"{message} to happen now.");
+            await context.CallActivityAsync("SendSlackMessage", $"*{message}* to happen now.");
 
             return new OkObjectResult(message);
         }
@@ -44,6 +38,30 @@ namespace Abioka.Function
             return new OkObjectResult(message);
         }
 
+        [FunctionName("GetDateFromMessage")]
+        public static async Task<DateTime> GetDateFromMessage([ActivityTrigger] IDurableActivityContext context, ILogger log) {
+            var message = context.GetInput<string>();
+            var client = HttpClientFactory.Create ();
+            var response = await client.GetAsync(string.Concat(Environment.GetEnvironmentVariable("LUISEndpoint"), message));
+            if (!response.IsSuccessStatusCode)
+                throw new Exception (await response.Content.ReadAsStringAsync ());
+
+            var luisResponse = await response.Content.ReadAsAsync<LuisResponse>();
+            var dateEntity = luisResponse.Entities.FirstOrDefault(x=>x.Type == "builtin.datetimeV2.date");
+            if(dateEntity != null && DateTime.TryParse(dateEntity.Resolution.Values?.First()?.Value, out DateTime date))
+            {
+                return date;
+            }
+            
+            dateEntity = luisResponse.Entities.FirstOrDefault(x=>x.Type == "builtin.datetimeV2.duration");
+            if(dateEntity != null && Int32.TryParse(dateEntity.Resolution.Values?.First()?.Value, out int seconds)){
+                var resultDate = DateTime.UtcNow.AddSeconds(seconds);
+                return resultDate;
+            }
+
+            return DateTime.UtcNow;
+        }
+
         [FunctionName("Scheduler")]
         public static async Task<IActionResult> HttpStart(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]HttpRequest req,
@@ -56,7 +74,25 @@ namespace Abioka.Function
 
             log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
 
-            return new OkObjectResult($"{message.Split(',')[0]} has been scheduled.");
+            return new OkObjectResult($"*{message}* has been scheduled.");
+        }
+
+        private class LuisResponse{
+            public IEnumerable<Entity> Entities { get; set; }
+
+            public class Entity{
+                public string Type { get; set; }
+
+                public Resolution Resolution { get; set; }
+            }
+
+            public class Resolution{
+                public IEnumerable<ResolutionValue> Values { get; set; }
+            }
+
+            public class ResolutionValue{
+                public string Value { get; set; }
+            }
         }
     }
 }
