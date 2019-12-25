@@ -20,7 +20,7 @@ namespace Abioka.Function
         {
             var message = context.GetInput<string>();
             var startAt = await context.CallActivityAsync<DateTime>("GetDateFromMessage", message);
-            log.LogInformation($"start date is: {startAt}");
+            await context.CallActivityAsync("SendSlackMessage", $"*{message}* has been scheduled at *{startAt}*");
             await context.CreateTimer(startAt, CancellationToken.None);
             await context.CallActivityAsync("SendSlackMessage", $"*{message}* to happen now.");
 
@@ -47,7 +47,7 @@ namespace Abioka.Function
                 throw new Exception (await response.Content.ReadAsStringAsync ());
 
             var luisResponse = await response.Content.ReadAsAsync<LuisResponse>();
-            var dateEntity = luisResponse.Entities.FirstOrDefault(x=>x.Type == "builtin.datetimeV2.date");
+            var dateEntity = luisResponse.Entities.FirstOrDefault(x=>x.Type == "builtin.datetimeV2.date" || x.Type == "builtin.datetimeV2.datetime");
             if(dateEntity != null && DateTime.TryParse(dateEntity.Resolution.Values?.First()?.Value, out DateTime date))
             {
                 return date;
@@ -57,6 +57,12 @@ namespace Abioka.Function
             if(dateEntity != null && Int32.TryParse(dateEntity.Resolution.Values?.First()?.Value, out int seconds)){
                 var resultDate = DateTime.UtcNow.AddSeconds(seconds);
                 return resultDate;
+            }
+
+            dateEntity = luisResponse.Entities.FirstOrDefault(x=>x.Type == "builtin.datetimeV2.datetimerange");
+            if(dateEntity != null && DateTime.TryParse(dateEntity.Resolution.Values?.First()?.Start, out DateTime start)
+                && DateTime.TryParse(dateEntity.Resolution.Values?.First()?.End, out DateTime end)){
+                return start.AddSeconds(((end - start).TotalSeconds / 2));
             }
 
             return DateTime.UtcNow;
@@ -74,7 +80,7 @@ namespace Abioka.Function
 
             log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
 
-            return new OkObjectResult($"*{message}* has been scheduled.");
+            return starter.CreateCheckStatusResponse(req, instanceId);
         }
 
         private class LuisResponse{
@@ -92,6 +98,10 @@ namespace Abioka.Function
 
             public class ResolutionValue{
                 public string Value { get; set; }
+
+                public string End { get; set; }
+
+                public string Start { get; set; }
             }
         }
     }
