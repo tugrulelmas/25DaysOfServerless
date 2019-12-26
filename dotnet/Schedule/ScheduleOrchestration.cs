@@ -50,19 +50,18 @@ namespace Abioka.Function
             var dateEntity = luisResponse.Entities.FirstOrDefault(x=>x.Type == "builtin.datetimeV2.date" || x.Type == "builtin.datetimeV2.datetime");
             if(dateEntity != null && DateTime.TryParse(dateEntity.Resolution.Values?.First()?.Value, out DateTime date))
             {
-                return date;
+                return new DateTime(date.Ticks, DateTimeKind.Utc);;
             }
             
             dateEntity = luisResponse.Entities.FirstOrDefault(x=>x.Type == "builtin.datetimeV2.duration");
             if(dateEntity != null && Int32.TryParse(dateEntity.Resolution.Values?.First()?.Value, out int seconds)){
-                var resultDate = DateTime.UtcNow.AddSeconds(seconds);
-                return resultDate;
+                return DateTime.UtcNow.AddSeconds(seconds);
             }
 
             dateEntity = luisResponse.Entities.FirstOrDefault(x=>x.Type == "builtin.datetimeV2.datetimerange");
             if(dateEntity != null && DateTime.TryParse(dateEntity.Resolution.Values?.First()?.Start, out DateTime start)
                 && DateTime.TryParse(dateEntity.Resolution.Values?.First()?.End, out DateTime end)){
-                return start.AddSeconds(((end - start).TotalSeconds / 2));
+                return new DateTime(start.AddSeconds(((end - start).TotalSeconds / 2)).Ticks, DateTimeKind.Utc);
             }
 
             return DateTime.UtcNow;
