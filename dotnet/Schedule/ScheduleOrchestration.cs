@@ -20,7 +20,7 @@ namespace Abioka.Function
         {
             var message = context.GetInput<string>();
             var startAt = await context.CallActivityAsync<DateTime>("GetDateFromMessage", message);
-            await context.CallActivityAsync("SendSlackMessage", $"*{message}* has been scheduled at *{startAt}*");
+            await context.CallActivityAsync("SendSlackMessage", $"*{message}* has been scheduled for *{startAt}*");
             await context.CreateTimer(startAt, CancellationToken.None);
             await context.CallActivityAsync("SendSlackMessage", $"*{message}* to happen now.");
 
